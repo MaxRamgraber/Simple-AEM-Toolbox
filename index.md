@@ -1,37 +1,20 @@
-## Welcome to GitHub Pages
+# A simple Analytic Element Method (AEM) toolbox
 
-You can use the [editor on GitHub](https://github.com/MaxRamgraber/Simple-AEM-Toolbox/edit/gh-pages/index.md) to maintain and preview the content for your website in Markdown files.
+This repository contains the two Python3 toolboxes and a simple tutorial for the accompanying paper in [Water Resources Research](https://agupubs.onlinelibrary.wiley.com/journal/19447973) (current status: submitted).
 
-Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
+## Installation
 
-### Markdown
+To use these toolboxes, simply download the Python files `toolbox_AEM.py` and `toolbox_MCMC.py'` (if desired) and copy them into your working directory. The MCMC toolbox is optional and only required if you also wish to use my MCMC implementation, the AEM toolbox can work as a standalone. Both toolboxes can be imported into your Python script by including the following code snippet:
 
-Markdown is a lightweight and easy-to-use syntax for styling your writing. It includes conventions for
-
-```markdown
-Syntax highlighted code block
-
-# Header 1
-## Header 2
-### Header 3
-
-- Bulleted
-- List
-
-1. Numbered
-2. List
-
-**Bold** and _Italic_ and `Code` text
-
-[Link](url) and ![Image](src)
+```
+from toolbox_AEM import *
+from toolbox_MCMC import *
 ```
 
-For more details see [GitHub Flavored Markdown](https://guides.github.com/features/mastering-markdown/).
+And that's it! 
 
-### Jekyll Themes
+## Troubleshooting
 
-Your Pages site will use the layout and styles from the Jekyll theme you have selected in your [repository settings](https://github.com/MaxRamgraber/Simple-AEM-Toolbox/settings). The name of this theme is saved in the Jekyll `_config.yml` configuration file.
+**Q: The model seems to create singularities, predicting very high or low water tables at certain isolated locations. What did I do wrong?**
 
-### Support or Contact
-
-Having trouble with Pages? Check out our [documentation](https://docs.github.com/categories/github-pages-basics/) or [contact support](https://github.com/contact) and we’ll help you sort it out.
+_A_: This usually happens if the model attempts to evaluate the complex potential **Ω** directly on an element. This can happen because because two elements share a line segment or because one of the evaluation points lies on an a line segment. Make sure that the elements do not share direct borders, for example by offsetting them by a minuscule amount (e.g., 1E-10). I have implemented protections against this for some but not all elements: inhomogeneity elements, for example, are automatically shrunk by a negligible amount. Also make sure that no elements intersect.
