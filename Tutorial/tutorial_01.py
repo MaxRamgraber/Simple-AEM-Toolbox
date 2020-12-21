@@ -1,6 +1,7 @@
 """
 This tutorial serves to guide the user through the construction of the synthetic
-test case.
+test case in the accompanying manuscript. Make sure that the 'toolbox_AEM.py' and
+'toolbox_MCMC.py' files are in the same working directory as this file.
 """
 
 # First, we load a number a libraries we require in the process
@@ -368,39 +369,39 @@ mcmc = MCMC(
     adapt_proposal          = True,
     acceptance_target       = 0.2)
 
-# # With the MCMC base defined, let us start the algorithm and store the results.
-# mcmc.start()
-# pickle.dump(mcmc,open('mcmc.p','wb'))
+# With the MCMC base defined, let us start the algorithm and store the results.
+mcmc.start()
+pickle.dump(mcmc,open('mcmc.p','wb'))
 
-# Alternatively, we can simply load the results we obtained previously:
-mcmc = pickle.load(open('mcmc.p','rb'))
+# # Alternatively, we can simply load the results we obtained previously:
+# mcmc = pickle.load(open('mcmc.p','rb'))
 
 # Let us plot the unique entries in the logposterior chain
 plt.figure()
 plt.plot(mcmc.chain_logposterior)
 
 
-# # As of now, MCMC has only evaluated the model at the observation wells (recall
-# # that AEM does not require you to evaluate it everywhere). If we wish to plot
-# # the uncertainty in the flow fields, we should evaluate the model everywhere.
-# # This can be done with the function 'evaluate_chain'.
-# # For the evaluation, we can discard the "burn-in" ('cutoff'). Looking at the 
-# # logposterior density, a good point would be at around 250 entries. One should
-# # select a location for the burn-in after which the chain appears 'normal'.
-# # Since it can be computationally very expensive to evaluate every single entry
-# # in the chain, we can further subsample the ensemble. 'subsampling' of 0.1 
-# # means that only 10% of the entries in the chain are being evaluated, and the
-# # 'subsampling_type' can be either 'incremental' (evaluate every 10th entry) or
-# # 'random' (10% randomly selected entries are evaluated)
-# evaluation_dictionary = mcmc.evaluate_chain(
-#     z                       = XY, 
-#     cutoff                  = 250, 
-#     subsampling             = 0.1, 
-#     subsampling_type        = 'incremental')
-# pickle.dump(evaluation_dictionary,open('evaluation_dictionary.p','wb'))
+# As of now, MCMC has only evaluated the model at the observation wells (recall
+# that AEM does not require you to evaluate it everywhere). If we wish to plot
+# the uncertainty in the flow fields, we should evaluate the model everywhere.
+# This can be done with the function 'evaluate_chain'.
+# For the evaluation, we can discard the "burn-in" ('cutoff'). Looking at the 
+# logposterior density, a good point would be at around 250 entries. One should
+# select a location for the burn-in after which the chain appears 'normal'.
+# Since it can be computationally very expensive to evaluate every single entry
+# in the chain, we can further subsample the ensemble. 'subsampling' of 0.1 
+# means that only 10% of the entries in the chain are being evaluated, and the
+# 'subsampling_type' can be either 'incremental' (evaluate every 10th entry) or
+# 'random' (10% randomly selected entries are evaluated)
+evaluation_dictionary = mcmc.evaluate_chain(
+    z                       = XY, 
+    cutoff                  = 250, 
+    subsampling             = 0.1, 
+    subsampling_type        = 'incremental')
+pickle.dump(evaluation_dictionary,open('evaluation_dictionary.p','wb'))
 
-# Alternatively, we can simply load the results we obtained previously:
-evaluation_dictionary = pickle.load(open('evaluation_dictionary.p','rb'))
+# # Alternatively, we can simply load the results we obtained previously:
+# evaluation_dictionary = pickle.load(open('evaluation_dictionary.p','rb'))
 
 
 #%%
@@ -484,7 +485,7 @@ for entry in observations:
 
 #%%
 
-# raise Exception
+raise Exception
 
 # =============================================================================
 # PATHLINE TRACING
