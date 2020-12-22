@@ -8,28 +8,26 @@
 class Model:
     
     def __init__(self,head_offset=0,aquifer_type='unconfined',domain_center=0+0j,
-                 domain_radius=1,variables=[],priors=[],observations=[],
-                 proposals=[], H = None):
+                 domain_radius=1,H = None,variables=[],priors=[],observations=[],
+                 proposals=[]):
         
         """
-        This implements a slightly altered version of the HeadLineSink analytic
-        element, whose influence is spatially limited rather being corrected by
-        a constant in the far field.
+        This creates a model base object, to which we can add other elements.
         
         Parameters:
-            r               - [vector]  : rotations of the three Moebius control points in counter-clockwise radians from 3 o'clock
-            a               - [scalar]  : coefficient of the Moebius transformation; calculated from r if not specified
-            b               - [scalar]  : coefficient of the Moebius transformation; calculated from r if not specified
-            c               - [scalar]  : coefficient of the Moebius transformation; calculated from r if not specified
-            d               - [scalar]  : coefficient of the Moebius transformation; calculated from r if not specified
-            phi_min         - [scalar]  : minimum absolute Moebius potential level (corresponds to -1 in the unit square)
-            phi_max         - [scalar]  : maximum absolute Moebius potential level (corresponds to +1 in the unit square)
-            phi_offset      - [scalar]  : offset for the Moebius potential level, generally corresponds to approximate height of the aquifer bottom
-            aquifer_type    - [string]  : specifies the aquifer type; either 'confined' or 'unconfined'
-            domain_center   - [complex] : x + iy coordinate of center of the circular, physical domain
-            domain_radius   - [scalar]  : radius of the circular domain
-            variable        - [list]    : list of variables which are inferred by MCMC, example: ['r','phi_min','phi_offset']; leave empty if unused
-            priors          - [list]    : list of dictionaries, one for each unknown variable; each dictionary must contain the name of distribution (in scipy.stats) and the relevant parameters as keys
+            
+        head_offset     - [scalar]  : aquifer base elevation in [length units]
+        aquifer_type    - [string]  : specifies the aquifer type; either 'confined', 'unconfined', or 'convertible'
+        domain_center   - [complex] : x + iy coordinate of center of the circular, physical domain in [length units]; can also be specified as a vector of length 2
+        domain_radius   - [scalar]  : radius of the circular domain in [length units]
+        H               - [scalar]  : aquifer top elevation in [length units]; only used if the aquifer is 'confined' or 'convertible'
+        
+        If MCMC use is intended, we further require:
+        
+        variable        - [list]    : list of variables which are inferred by MCMC, example: ['head_offset','H']; leave empty if unused
+        priors          - [list]    : list of dictionaries, one for each unknown 'variable'; each dictionary must contain the name of distribution (in scipy.stats) and the relevant parameters as keys
+        observations    - [list]    : list of dictionaries, one for each hydraulic head observations; each dictionary must contain a 'location' and a 'head key', with a complex and real number, respectively
+        proposals       - [dict]    : dictionary specifying the MCMC proposal distribution for each unknown 'variable'; each dictionary must contain the name of a distribution (in scipy.stats) under a 'distribution' key, and the relevant parameters as additional keys
         """
         
         import numpy as np
@@ -119,56 +117,6 @@ class Model:
             raise Exception("depth of confined layer 'H' must be specified if aquifer is confined or convertible.")
             
     def evaluate(self,z,mode='potential',derivatives='all'):
-        
-        """
-        This function maps from locations to complex potential (inverse = True)
-        or from complex potential to locations (inverse = False). The latter 
-        map only supports the base map, not any analytical elements.
-        
-        MAP: real space ---> complex potential --------------------------------
-        
-            1) If at least one HeadLineSink is specified, learn which fluxes to
-               specify to obtain the prescribed heads at the LineSink control
-               points. Do so by first evaluating the potential induced by the 
-               Moebius base and any wells which may exist, then induce the
-               remainder by adjusting the LineSink fluxes.
-               
-            2) Rescale the circular, physical model domain to obtain the 
-               'canonical unit disk', the physical model domain scaled to unity.
-               
-            3) Reverse the Moebius transformation, transforming the canonical
-               unit disk to what we call the 'Moebius base'.
-               
-            4) Reverse the Schwarz-Christoffel transformation, mapping from the
-               Moebius base to the unit square. This yields coordinates in the 
-               unit square. These coordinates only correspond to potential if
-               the aquifer is unconfined. If it is not, account for the non-
-               linearity (Dupuit-parabola) to calculate the potential at each 
-               point. Scale the potential according to user specifications.
-               
-            5) Add the contributions of any analytic elements (wells or line
-               sinks) to obtain the final potential.
-            
-        Map: complex potential ---> real space --------------------------------
-        
-            WARNING: This map cannot consider contributions of any analytic 
-            elements. It only inverts the map between the canonical unit disk
-            and the unit square.
-            
-            1) If the aquifer is confined, the x-axis in complex space has a
-               direct correspondence to potential. For unconfined aquifers, the
-               nonlinearity (Dupuit parabola) must be considered. Find the 
-               complex coordinates corresponding to the desired potential.
-               
-            2) Map from the unit square to the unit disk (Schwarz-Christoffel),
-               which we refer to as the 'Moebius base'.
-               
-            3) Map from the Moebius base to the canonical unit disk, a scaled
-               version of two-dimensional real space. This yields the base
-               flow in real space. 
-        
-        -----------------------------------------------------------------------        
-        """
         
         import numpy as np
         import copy
@@ -1108,27 +1056,31 @@ class Model:
 class ElementMoebiusBase:
     
     def __init__(self,model,r=None,a=None,b=None,c=None,d=None,head_min=0,head_max=1,
-                 head_offset=0,k=1,variables=[],priors=[],proposals=[],angular_limit=1):
+                 k=1,variables=[],priors=[],proposals=[],angular_limit=1):
+        
         
         """
-        This implements a slightly altered version of the HeadLineSink analytic
-        element, whose influence is spatially limited rather being corrected by
-        a constant in the far field.
+        This implements the Möbius base flow element, which can induce curving,
+        converging, or diverging regional flow.
         
         Parameters:
-            r               - [vector]  : rotations of the three Moebius control points in counter-clockwise radians from 3 o'clock
-            a               - [scalar]  : coefficient of the Moebius transformation; calculated from r if not specified
-            b               - [scalar]  : coefficient of the Moebius transformation; calculated from r if not specified
-            c               - [scalar]  : coefficient of the Moebius transformation; calculated from r if not specified
-            d               - [scalar]  : coefficient of the Moebius transformation; calculated from r if not specified
-            phi_min         - [scalar]  : minimum absolute Moebius potential level (corresponds to -1 in the unit square)
-            phi_max         - [scalar]  : maximum absolute Moebius potential level (corresponds to +1 in the unit square)
-            phi_offset      - [scalar]  : offset for the Moebius potential level, generally corresponds to approximate height of the aquifer bottom
-            aquifer_type    - [string]  : specifies the aquifer type; either 'confined' or 'unconfined'
-            domain_center   - [complex] : x + iy coordinate of center of the circular, physical domain
-            domain_radius   - [scalar]  : radius of the circular domain
-            variable        - [list]    : list of variables which are inferred by MCMC, example: ['r','phi_min','phi_offset']; leave empty if unused
-            priors          - [list]    : list of dictionaries, one for each unknown variable; each dictionary must contain the name of distribution (in scipy.stats) and the relevant parameters as keys
+            
+        model           - [object]  : the model object to which this element is added
+        r               - [vector]  : rotations of the three Moebius control points in counter-clockwise radians from East
+        a               - [scalar]  : coefficient of the Moebius transformation; calculated from r if not specified
+        b               - [scalar]  : coefficient of the Moebius transformation; calculated from r if not specified
+        c               - [scalar]  : coefficient of the Moebius transformation; calculated from r if not specified
+        d               - [scalar]  : coefficient of the Moebius transformation; calculated from r if not specified
+        head_min        - [scalar]  : minimum hydraulic head (mapped to -1 in the unit square)
+        head_max        - [scalar]  : maximum hydraulic head (mapped to +1 in the unit square)
+        k               - [scalar]  : background hydraulic conductivity in canonical units (e.g., 1E-4 [length]/[time])
+
+        If MCMC is used, we further require:
+            
+        variable        - [list]    : list of variables which are inferred by MCMC, example: ['r','phi_min']; leave empty if unused
+        priors          - [list]    : list of dictionaries, one for each unknown 'variable'; each dictionary must contain the name of distribution (in scipy.stats) and the relevant parameters as keys
+        proposals       - [dict]    : dictionary specifying the MCMC proposal distribution for each unknown 'variable'; each dictionary must contain the name of a distribution (in scipy.stats) under a 'distribution' key, and the relevant parameters as additional keys
+        angular_limit   - [scalar]  : a limit which prevents control points (A,B,C, or D) getting closer to each other than the specified value in radians; this acts as protection against improbable or unrealistic flow fields induced by the Möbius transformation
         """
         
         import numpy as np
@@ -1546,23 +1498,41 @@ class ElementMoebiusBase:
         z_D     = self.moebius(z_D,inverse=False)*self.model.domain_radius + self.model.domain_center
         z_D     = np.asarray([np.real(z_D),np.imag(z_D)])
         
-        a_low   = np.linspace(math.atan2(z_C[1],z_C[0]),math.atan2(z_D[1],z_D[0]),360)
+        dc      = self.model.domain_center
+        if np.isscalar(dc):
+            dc  = np.asarray([np.real(dc),np.imag(dc)])
+        
+        a_low   = np.linspace(
+            math.atan2(
+                z_C[1]-dc[1],
+                z_C[0]-dc[0]),
+            math.atan2(
+                z_D[1]-dc[1],
+                z_D[0]-dc[0]),
+            360)
         if abs(a_low[0]-a_low[-1]) > np.pi:
             a_low = np.concatenate((
                 np.linspace(np.min(a_low),-np.pi,360),
                 np.linspace(np.pi,np.max(a_low),360) ))
         
-        a_high  = np.linspace(math.atan2(z_A[1],z_A[0]),math.atan2(z_B[1],z_B[0]),360)
+        a_high  = np.linspace(
+            math.atan2(
+                z_A[1]-dc[1],
+                z_A[0]-dc[0]),
+            math.atan2(
+                z_B[1]-dc[1],
+                z_B[0]-dc[0]),
+            360)
         if abs(a_high[0]-a_high[-1]) > np.pi:
             a_high = np.concatenate((
                 np.linspace(np.min(a_high),-np.pi,360),
                 np.linspace(np.pi,np.max(a_high),360) ))
             
-        plt.plot(np.cos(a_low)*self.model.domain_radius + self.model.domain_center,
-                 np.sin(a_low)*self.model.domain_radius + self.model.domain_center,
+        plt.plot(np.cos(a_low)*self.model.domain_radius + dc[0],
+                 np.sin(a_low)*self.model.domain_radius + dc[1],
                  color = color_low,linewidth=2)
-        plt.plot(np.cos(a_high)*self.model.domain_radius + self.model.domain_center,
-                 np.sin(a_high)*self.model.domain_radius + self.model.domain_center,
+        plt.plot(np.cos(a_high)*self.model.domain_radius + dc[0],
+                 np.sin(a_high)*self.model.domain_radius + dc[1],
                  color = color_high,linewidth=2)
         
         plt.scatter(z_A[0],z_A[1],s=pointsize,color=pointcolor,zorder=11,**kwargs)
@@ -1587,28 +1557,27 @@ class ElementMoebiusBase:
 
 class ElementUniformBase:
     
-    def __init__(self,model,alpha=0,head_min=0,head_max=1,head_offset=0,k=1,
+    def __init__(self,model,alpha=0,head_min=0,head_max=1,k=1,
                  variables=[],priors=[],proposals=[]):
         
+        
         """
-        This implements a slightly altered version of the HeadLineSink analytic
-        element, whose influence is spatially limited rather being corrected by
-        a constant in the far field.
+        This implements the uniform base flow element.
         
         Parameters:
-            r               - [vector]  : rotations of the three Moebius control points in counter-clockwise radians from 3 o'clock
-            a               - [scalar]  : coefficient of the Moebius transformation; calculated from r if not specified
-            b               - [scalar]  : coefficient of the Moebius transformation; calculated from r if not specified
-            c               - [scalar]  : coefficient of the Moebius transformation; calculated from r if not specified
-            d               - [scalar]  : coefficient of the Moebius transformation; calculated from r if not specified
-            phi_min         - [scalar]  : minimum absolute Moebius potential level (corresponds to -1 in the unit square)
-            phi_max         - [scalar]  : maximum absolute Moebius potential level (corresponds to +1 in the unit square)
-            phi_offset      - [scalar]  : offset for the Moebius potential level, generally corresponds to approximate height of the aquifer bottom
-            aquifer_type    - [string]  : specifies the aquifer type; either 'confined' or 'unconfined'
-            domain_center   - [complex] : x + iy coordinate of center of the circular, physical domain
-            domain_radius   - [scalar]  : radius of the circular domain
-            variable        - [list]    : list of variables which are inferred by MCMC, example: ['r','phi_min','phi_offset']; leave empty if unused
-            priors          - [list]    : list of dictionaries, one for each unknown variable; each dictionary must contain the name of distribution (in scipy.stats) and the relevant parameters as keys
+            
+        model           - [object]  : the model object to which this element is added
+        alpha           - [scalar]  : direction of the uniform flow in counter-clockwise radians from East
+        head_min        - [scalar]  : minimum hydraulic head (mapped to -1 in the unit square)
+        head_max        - [scalar]  : maximum hydraulic head (mapped to +1 in the unit square)
+        k               - [scalar]  : background hydraulic conductivity in canonical units (e.g., 1E-4 [length]/[time])
+
+        If MCMC is used, we further require:
+            
+        variable        - [list]    : list of variables which are inferred by MCMC, example: ['r','phi_min']; leave empty if unused
+        priors          - [list]    : list of dictionaries, one for each unknown 'variable'; each dictionary must contain the name of distribution (in scipy.stats) and the relevant parameters as keys
+        observations    - [list]    : list of dictionaries, one for each hydraulic head observations; each dictionary must contain a 'location' and a 'head key', with a complex and real number, respectively
+        proposals       - [dict]    : dictionary specifying the MCMC proposal distribution for each unknown 'variable'; each dictionary must contain the name of a distribution (in scipy.stats) under a 'distribution' key, and the relevant parameters as additional keys
         """
         
         import numpy as np
@@ -1617,7 +1586,7 @@ class ElementUniformBase:
         self.model          = model
         model.elementlist.append(self)
         
-        # Set Moebius values
+        # Set orientation value
         self.alpha          = alpha
         
         # Set potential scaling variables
@@ -1771,25 +1740,27 @@ class ElementUniformBase:
 class ElementHeadBoundary:
     
     def __init__(self, model, line, line_ht, segments = None, influence = None, 
-                 strength = 1, connectivity = 1, connectivity_normdist = None,
+                 connectivity = 1, connectivity_normdist = None,
                  variables = [], priors=[],proposals = []):
         
         """
-        This implements a slightly altered version of the HeadLineSink analytic
-        element, whose influence is spatially limited rather being corrected by
-        a constant in the far field.
+        This implements a prescribed head boundary.
         
         Parameters:
-            model           - [class]   : The model instance for which this element is defined
-            x1              - [scalar]  : x-coordinate of start point of element
-            y1              - [scalar]  : y-coordinate of start point of element
-            x2              - [scalar]  : x-coordinate of end point of element
-            y2              - [scalar]  : y-coordinate of end point of element
-            influence       - [scalar]  : distance in which the element's influence will be zero (should lie outside domain)
-            drawdown        - [scalar]  : induced drawdown at the element's control point (center of line)
-            head_target     - [scalar]  : target hydraulic head this Linesink should induce
-            variables       - [list]    : list of variables which are inferred by MCMC, example: ['drawdown','influence']; leave empty if unused
-            priors          - [list]    : list of dictionaries, one for each unknown variable; each dictionary must contain the name of distribution (in scipy.stats) and the relevant parameters as keys
+            
+        model           - [object]  : the model object to which this element is added
+        line            - [array]   : either a real N-by-2 matrix or complex vector of length N specifying the vertices of a line string tracing the element's path
+        line_ht         - [vector]  : a real vector of length N specifying the corresponding prescribed hydraulic heads at the line string's vertices
+        segments        - [scalar]  : this element has a subdivision function; if a finer resolution than the number of segments in 'line' is desired, specify a larger number here; the function will then subdivide 'line' and 'line_ht' so as to create segments of as equal length as possible
+        influence       - [scalar]  : radius of zero influence of each line segment; set to twice the model domain_radius if unspecified
+        connectivity    - [scalar]  : either a real scalar or vector of length M, specifying if the aquifer is fully connected (1) or unconnected (0) to the HeadBoundary
+        connectivity_normdist - [vector]    : if connectivity is a vector, this specifies the normalized distances 0,...,d,...,1 along which the M connectivity nodes are placed; connectivity values are then linearly interpolated for each segment
+
+        If MCMC is used, we further require:
+            
+        variable        - [list]    : list of variables which are inferred by MCMC, example: ['line_ht']; leave empty if unused
+        priors          - [list]    : list of dictionaries, one for each unknown 'variable'; each dictionary must contain the name of distribution (in scipy.stats) and the relevant parameters as keys
+        proposals       - [dict]    : dictionary specifying the MCMC proposal distribution for each unknown 'variable'; each dictionary must contain the name of a distribution (in scipy.stats) under a 'distribution' key, and the relevant parameters as additional keys
         """
 
         import numpy as np
@@ -1872,7 +1843,7 @@ class ElementHeadBoundary:
         # ---------------------------------------------------------------------        
         
         # Assign the initial strength variables for each segment
-        self.strength       = np.ones(self.segments)*strength
+        self.strength       = np.ones(self.segments)
         
         # Prepare the influence range for this line sink
         if influence is None:
@@ -2252,21 +2223,19 @@ class ElementNoFlowBoundary:
                  variables = [], priors=[], proposals = []):
         
         """
-        This implements a slightly altered version of the HeadLineSink analytic
-        element, whose influence is spatially limited rather being corrected by
-        a constant in the far field.
+        This implements a no-flow boundary.
         
         Parameters:
-            model           - [class]   : The model instance for which this element is defined
-            x1              - [scalar]  : x-coordinate of start point of element
-            y1              - [scalar]  : y-coordinate of start point of element
-            x2              - [scalar]  : x-coordinate of end point of element
-            y2              - [scalar]  : y-coordinate of end point of element
-            influence       - [scalar]  : distance in which the element's influence will be zero (should lie outside domain)
-            drawdown        - [scalar]  : induced drawdown at the element's control point (center of line)
-            head_target     - [scalar]  : target hydraulic head this Linesink should induce
-            variables       - [list]    : list of variables which are inferred by MCMC, example: ['drawdown','influence']; leave empty if unused
-            priors          - [list]    : list of dictionaries, one for each unknown variable; each dictionary must contain the name of distribution (in scipy.stats) and the relevant parameters as keys
+            
+        model           - [object]  : the model object to which this element is added
+        line            - [array]   : either a real N-by-2 matrix or complex vector of length N specifying the vertices of a line string tracing the element's path
+        segments        - [scalar]  : this element has a subdivision function; if a finer resolution than the number of segments in 'line' is desired, specify a larger number here; the function will then subdivide 'line' and 'line_ht' so as to create segments of as equal length as possible
+
+        If MCMC is used, we further require:
+            
+        variable        - [list]    : list of variables which are inferred by MCMC, example: ['line_ht']; leave empty if unused
+        priors          - [list]    : list of dictionaries, one for each unknown 'variable'; each dictionary must contain the name of distribution (in scipy.stats) and the relevant parameters as keys
+        proposals       - [dict]    : dictionary specifying the MCMC proposal distribution for each unknown 'variable'; each dictionary must contain the name of a distribution (in scipy.stats) under a 'distribution' key, and the relevant parameters as additional keys
         """
 
         import numpy as np
@@ -2279,7 +2248,15 @@ class ElementNoFlowBoundary:
         model.linear_solver = True
 
         # ---------------------------------------------------------------------
-        # Subdivide the provided no flow boundary into #segments pieces
+        # Subdivide the provided no flow boundary into segments pieces
+        
+        # Complexify the line, if it wasn't already complex
+        line                = self.complexify(line)
+        
+        # The subdivision algorith requires the line coordinates as a real N-by-2 matrix
+        line                = np.column_stack((
+            np.real(line)[:,np.newaxis],
+            np.imag(line)[:,np.newaxis]))
         
         self.line_raw       = copy.copy(line)
         if segments is None:
@@ -2580,6 +2557,23 @@ class ElementInhomogeneity:
     def __init__(self, model, polygon, segments = None, k = 0.1,
                  variables = [], priors=[], proposals = [],snap_distance = 1E-10,
                  zero_cutoff = 1E-10, snap = True):
+
+        """
+        This implements a zonal hydraulic conductivity inhomogeneity.
+        
+        Parameters:
+            
+        model           - [object]  : the model object to which this element is added
+        polygon         - [array]   : either a real N-by-2 matrix or complex vector of length N specifying the vertices of a polygon tracing the element's shape
+        segments        - [scalar]  : this element has a subdivision function; if a finer resolution than the number of segments in 'polygon' is desired, specify a larger number here; the function will then subdivide 'line' and 'line_ht' so as to create segments of as equal length as possible
+        k               - [scalar]  : hydraulic conductivity inside the inhomogeneity in canonical units (e.g., 1E-5 [length units]/[time units])
+
+        If MCMC is used, we further require:
+            
+        variable        - [list]    : list of variables which are inferred by MCMC, example: ['line_ht']; leave empty if unused
+        priors          - [list]    : list of dictionaries, one for each unknown 'variable'; each dictionary must contain the name of distribution (in scipy.stats) and the relevant parameters as keys
+        proposals       - [dict]    : dictionary specifying the MCMC proposal distribution for each unknown 'variable'; each dictionary must contain the name of a distribution (in scipy.stats) under a 'distribution' key, and the relevant parameters as additional keys
+        """
 
         import numpy as np
         import copy
@@ -3298,6 +3292,23 @@ class ElementAreaSink:
                  variables = [], priors=[], proposals = [],snap_distance = 1E-10,
                  snap = False, influence = None):
 
+        """
+        This implements an area sink.
+        
+        Parameters:
+            
+        model           - [object]  : the model object to which this element is added
+        polygon         - [array]   : either a real N-by-2 matrix or complex vector of length N specifying the vertices of a polygon tracing the element's path
+        segments        - [scalar]  : this element has a subdivision function; if a finer resolution than the number of segments in 'line' is desired, specify a larger number here; the function will then subdivide 'line' and 'line_ht' so as to create segments of as equal length as possible
+        strength        - [scalar]  : injection or extraction rate of this element in [length unit]^3/[length unit]^2/[time unit]
+
+        If MCMC is used, we further require:
+            
+        variable        - [list]    : list of variables which are inferred by MCMC, example: ['line_ht']; leave empty if unused
+        priors          - [list]    : list of dictionaries, one for each unknown 'variable'; each dictionary must contain the name of distribution (in scipy.stats) and the relevant parameters as keys
+        proposals       - [dict]    : dictionary specifying the MCMC proposal distribution for each unknown 'variable'; each dictionary must contain the name of a distribution (in scipy.stats) under a 'distribution' key, and the relevant parameters as additional keys
+        """
+
         import numpy as np
         import copy
         import matplotlib.path
@@ -3901,21 +3912,21 @@ class ElementLineSink:
                  strength = 1, variables = [], priors=[],proposals = []):
         
         """
-        This implements a slightly altered version of the HeadLineSink analytic
-        element, whose influence is spatially limited rather being corrected by
-        a constant in the far field.
+        This implements a line sink.
         
         Parameters:
-            model           - [class]   : The model instance for which this element is defined
-            x1              - [scalar]  : x-coordinate of start point of element
-            y1              - [scalar]  : y-coordinate of start point of element
-            x2              - [scalar]  : x-coordinate of end point of element
-            y2              - [scalar]  : y-coordinate of end point of element
-            influence       - [scalar]  : distance in which the element's influence will be zero (should lie outside domain)
-            drawdown        - [scalar]  : induced drawdown at the element's control point (center of line)
-            head_target     - [scalar]  : target hydraulic head this Linesink should induce
-            variables       - [list]    : list of variables which are inferred by MCMC, example: ['drawdown','influence']; leave empty if unused
-            priors          - [list]    : list of dictionaries, one for each unknown variable; each dictionary must contain the name of distribution (in scipy.stats) and the relevant parameters as keys
+            
+        model           - [object]  : the model object to which this element is added
+        line            - [array]   : either a real N-by-2 matrix or complex vector of length N specifying the vertices of a line string tracing the element's path
+        segments        - [scalar]  : this element has a subdivision function; if a finer resolution than the number of segments in 'line' is desired, specify a larger number here; the function will then subdivide 'line' and 'line_ht' so as to create segments of as equal length as possible
+        influence       - [scalar]  : radius of zero influence of each line segment; set to twice the model domain_radius if unspecified
+        strength        - [scalar]  : this specifies the injection or extraction rate of the element
+
+        If MCMC is used, we further require:
+            
+        variable        - [list]    : list of variables which are inferred by MCMC, example: ['line_ht']; leave empty if unused
+        priors          - [list]    : list of dictionaries, one for each unknown 'variable'; each dictionary must contain the name of distribution (in scipy.stats) and the relevant parameters as keys
+        proposals       - [dict]    : dictionary specifying the MCMC proposal distribution for each unknown 'variable'; each dictionary must contain the name of a distribution (in scipy.stats) under a 'distribution' key, and the relevant parameters as additional keys
         """
 
         import numpy as np
@@ -4230,28 +4241,26 @@ class ElementLineSink:
     
 class ElementWell:
     
-    def __init__(self, model, zc, rw, influence = None, strength = 1, head_change = -1,
+    def __init__(self, model, zc, rw, influence = None, head_change = -1, strength = 1,
                  drawdown_specified = False, variables = [], priors = [], proposals = []):
         
         """
-        This implements a slightly altered version of the Well analytic element, 
-        whose influence is spatially limited rather being corrected by a constant 
-        in the far field. Can be used in two different modes: 
-            drawdown_specified = True   : well strength determined to achieve 
-                                          desired head_change
-            drawdown_specified = False  : well strength user specified
+        This implements an injection or extraction well.
         
         Parameters:
-            model           - [class]   : The model instance for which this element is defined
-            zc              - [complex] : complex coordinate of the well; real = x coordinate; imag = y coordinate
-            rw              - [scalar]  : radius of the well screen
-            influence       - [scalar]  : distance in which the element's influence will be zero (should lie outside domain)
-            strength        - [scalar]  : induced drawdown at the well's center; determined automatically if drawdown_specified = True
-            head_change     - [scalar]  : induced drawdown or mounding in head units; only used if drawdown_specified = True
-            drawdown_specified - [bool] : boolean defining how the well's strength is defined
-            variables       - [list]    : list of variables which are inferred by MCMC, example: ['drawdown']; leave empty if unused
-            priors          - [list]    : list of dictionaries, one for each unknown variable; each dictionary must contain the name of distribution (in scipy.stats) and the relevant parameters as keys
-            proposals       - [list]    : list of dictionaries, one for each unknown variable; each dictionary must contain the name of distribution (in scipy.stats) and the relevant parameters as keys
+            
+        model           - [object]  : the model object to which this element is added
+        zw              - [vector]  : either a complex scalar or a real vector of length 2 specifying the xy coordinates of the well
+        rw              - [scalar]  : a real scalar specifying the screen radius of the well in [length units]
+        strength        - [scalar]  : extraction or injection rate at this well in [length units]^3/[time units]
+        head_change     - [scalar]  : alternative to strength, induces the prescribed drawdown at the well; only used if drawdown_specified is True
+        drawdown_specified - [boolean]  : flag for whether the well's strength is determined through a prescribed head_change; defaults to False
+        
+        If MCMC is used, we further require:
+            
+        variable        - [list]    : list of variables which are inferred by MCMC, example: ['line_ht']; leave empty if unused
+        priors          - [list]    : list of dictionaries, one for each unknown 'variable'; each dictionary must contain the name of distribution (in scipy.stats) and the relevant parameters as keys
+        proposals       - [dict]    : dictionary specifying the MCMC proposal distribution for each unknown 'variable'; each dictionary must contain the name of a distribution (in scipy.stats) under a 'distribution' key, and the relevant parameters as additional keys
         """
         
         import numpy as np
@@ -4466,24 +4475,8 @@ class ElementMoebiusOverlay:
                  variables=[],priors=[],proposals=[],angular_limit=1):
         
         """
-        This implements a slightly altered version of the HeadLineSink analytic
-        element, whose influence is spatially limited rather being corrected by
-        a constant in the far field.
-        
-        Parameters:
-            r               - [vector]  : rotations of the three Moebius control points in counter-clockwise radians from 3 o'clock
-            a               - [scalar]  : coefficient of the Moebius transformation; calculated from r if not specified
-            b               - [scalar]  : coefficient of the Moebius transformation; calculated from r if not specified
-            c               - [scalar]  : coefficient of the Moebius transformation; calculated from r if not specified
-            d               - [scalar]  : coefficient of the Moebius transformation; calculated from r if not specified
-            phi_min         - [scalar]  : minimum absolute Moebius potential level (corresponds to -1 in the unit square)
-            phi_max         - [scalar]  : maximum absolute Moebius potential level (corresponds to +1 in the unit square)
-            phi_offset      - [scalar]  : offset for the Moebius potential level, generally corresponds to approximate height of the aquifer bottom
-            aquifer_type    - [string]  : specifies the aquifer type; either 'confined' or 'unconfined'
-            domain_center   - [complex] : x + iy coordinate of center of the circular, physical domain
-            domain_radius   - [scalar]  : radius of the circular domain
-            variable        - [list]    : list of variables which are inferred by MCMC, example: ['r','phi_min','phi_offset']; leave empty if unused
-            priors          - [list]    : list of dictionaries, one for each unknown variable; each dictionary must contain the name of distribution (in scipy.stats) and the relevant parameters as keys
+        Similar to the Möbius base, but an additive overlay. Unfinished.
+
         """
         
         import numpy as np
@@ -4932,10 +4925,27 @@ class ElementMoebiusOverlay:
 
 #%%
     
-def equidistant_points_in_circle(rings = 3, radius = 1):
+def equidistant_points_in_circle(rings = 3, radius = 1, offset = 0+0j):
+    
+    """
+    This function creates equidistant points on a number of specified rings
+    inside a unit disk.
+    
+    Parameters:
+        
+    rings           - [scalar]  : number of rings on which equidistant points are placed; the more rings, the more points
+    radius          - [scalar]  : radius by which the unit disk is scaled
+    """
     
     import numpy as np
     import math
+    
+    # If the offset is complex, convert it to a real vector of length 2
+    if np.iscomplex(offset).any():
+        if not np.isscalar(offset):
+            raise Exception('Shape format not understood. Provide the offset either as a complex scalar, or as a real numpy array of shape (2,).')
+        else:
+            offset = np.asarray([np.real(offset),np.imag(offset)])
     
     # Pre-allocate lists for the X and Y coordinates
     x = []
@@ -4963,6 +4973,10 @@ def equidistant_points_in_circle(rings = 3, radius = 1):
     
     # And scale it, if desired
     XY  *= radius
+    
+    # Apply the offset
+    XY[:,0]     += offset[0]
+    XY[:,1]     += offset[1]
     
     return XY
     
