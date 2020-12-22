@@ -15,7 +15,7 @@ And that's it!
 
 ## Tutorials
 
-We have provided a few simple tutorials to help you familiarizing yourself with the toolbox. The **basic tutorial** is available either as a [Python3 file](https://github.com/MaxRamgraber/Simple-AEM-Toolbox/tree/main/Tutorials/basic_tutorial) or as a [Jupyter Notebook](https://github.com/MaxRamgraber/Simple-AEM-Toolbox/tree/main/Jupyter%20Notebooks). This tutorial covers some of the most basic elements for a simple, deterministic groundwater simulation.
+We have provided a few simple tutorials to help you familiarize yourself with the toolbox. The **basic tutorial** is available either as a [Python3 file](https://github.com/MaxRamgraber/Simple-AEM-Toolbox/tree/main/Tutorials/basic_tutorial) or as a [Jupyter Notebook](https://github.com/MaxRamgraber/Simple-AEM-Toolbox/tree/main/Jupyter%20Notebooks). This tutorial covers some of the most basic elements for a simple, deterministic groundwater simulation.
 
 For more advanced purposes, we have also added the **synthetic test case** of the accompanying paper as a [Python3 file](https://github.com/MaxRamgraber/Simple-AEM-Toolbox/tree/main/Tutorials/synthetic_reference). This scenario is a bit more complicated and does not only include a deterministic simulation, but also demonstrates the use of the (optional) [MCMC toolbox](https://github.com/MaxRamgraber/Simple-AEM-Toolbox/blob/main/toolbox_MCMC.py) for Bayesian posterior inference. While we attempted to also make the synthetic test case approachable to beginners, we recommend starting with the basic tutorial first.
 
