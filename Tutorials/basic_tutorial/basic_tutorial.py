@@ -13,7 +13,7 @@ plt.close('all')
 
 # We then start by initializing a base model. This is done by initializing a 
 # 'Model' object. For this object, the most common things we can specify are:
-#
+
 #   head_offset     - elevation of the aquifer base in [length units]
 #   aquifer_type    - whether the aquifer is 'unconfined', 'confined', or 'convertible' (confined/unconfined based on head)
 #   domain_center   - xy coordinates of the center point of the circular model domain in [length units]
@@ -26,6 +26,7 @@ ml  = Model(
 
 # The Model object has an in-built plot function which allows us to plot its
 # extent and any elements we have defined so far. Let's test it:
+plt.figure()
 ml.plot()
 plt.axis('equal')
 plt.xlabel('$x$ coordinate in [length units]')
@@ -50,6 +51,7 @@ ElementMoebiusBase(
     k               = 1E-4)
 
 # Let's plot the progress
+plt.figure()
 ml.plot()
 plt.axis('equal')
 plt.xlabel('$x$ coordinate in [length units]')
@@ -59,7 +61,7 @@ plt.ylabel('$y$ coordinate in [length units]')
 # As an example, we can add an internal no-flow boundary, representing a sheet
 # wall or an impermeable geological formulation (if the element is line is 
 # closed). A no-flow boundary has the following parameters:
-#
+
 #   model           - the model object to which this element will be added
 #   line            - a complex vector or real N-by-2 array specifying the vertices of the no-flow boundary
 #   segments        - most line or polygonal elements only work if their resolution is sufficiently fine; however, the element we specified below has only three segments; specifying segments > 3 subdivides the specified line and increases the element's resolution, at greater computational expense
@@ -69,6 +71,7 @@ ElementNoFlowBoundary(
     segments        = 100)
 
 # Let's plot the progress
+plt.figure()
 ml.plot()
 plt.axis('equal')
 plt.xlabel('$x$ coordinate in [length units]')
@@ -88,6 +91,7 @@ ElementWell(
     strength        = -1E-2)
 
 # Let's plot the progress
+plt.figure()
 ml.plot()
 plt.axis('equal')
 plt.xlabel('$x$ coordinate in [length units]')
@@ -102,7 +106,7 @@ plt.ylabel('$y$ coordinate in [length units]')
 # optional 'connectivity' variable (between 0 and 1), which can be relevant for
 # rivers with imperfect hydraulic connection. In this tutorial, we will only
 # consider the simplest setup:
-#
+
 #   model           - the model object to which this element will be added
 #   line            - a complex vector or real N-by-2 array specifying the vertices of the no-flow boundary
 #   line_ht         - a real vector of length N specifying the hydraulic heads enforced at the boundary's vertices
@@ -115,6 +119,7 @@ ElementHeadBoundary(
     segments        = 100)
 
 # Let's plot the progress
+plt.figure()
 ml.plot()
 plt.axis('equal')
 plt.xlabel('$x$ coordinate in [length units]')
@@ -125,7 +130,7 @@ plt.ylabel('$y$ coordinate in [length units]')
 # is a polygon (which is automatically closed, if it isn't already defined as
 # such), an interior hydraulic conductivity, and an (optional) segments 
 # variable used for refinement:
-#
+
 #   polygon         - a complex vector or real N-by-2 array specifying the vertices of the polygon
 #   k               - interior hydraulic conductivity in [length units]/[time units]
 #   segments        - most line or polygonal elements only work if their resolution is sufficiently fine; however, the element we specified below has only four segments; specifying segments > 4 subdivides the specified line and increases the element's resolution, at greater computational expense
@@ -137,6 +142,7 @@ ElementInhomogeneity(
     segments        = 100)
 
 # Let's plot the progress
+plt.figure()
 ml.plot()
 plt.axis('equal')
 plt.xlabel('$x$ coordinate in [length units]')
@@ -146,7 +152,10 @@ plt.ylabel('$y$ coordinate in [length units]')
 # a numerical grid. As a consequence, we can decide on where we want to 
 # evaluate the model after we have defined it. To create equidistant points in 
 # a circular model domain, we have added a convenient function to the AEM
-# toolbox:
+# toolbox. This function has the following parameters:
+#   rings           - number of rings on which equidistant points are placed; the more rings, the more points
+#   radius          - radius by which the unit disk is scaled
+#   offset          - real vector of length 2 or complex scalar, specifying the model domain offset
 XY  = equidistant_points_in_circle(
     rings           = 51,
     radius          = ml.domain_radius,
@@ -166,7 +175,7 @@ XY  = equidistant_points_in_circle(
 # function), in which case the real and imaginary parts correspond to the 
 # partial derivatives in x and y, respectively. 
 # The most basic parameters, however, are:
-#
+
 #   z               - complex vector or real N-by-2 array containing the evaluation points
 #   mode            - string specifying the evaluation mode; either 'head', 'potential', or 'gradient'
 z   = ml.evaluate(
@@ -180,6 +189,7 @@ z   = ml.evaluate(
 # the hydraulic head estimates (the real part of z); we can also specify a 
 # desired number of contour levels, and the priority with which the contours
 # should be plotted.
+plt.figure()
 ml.plot()
 plt.axis('equal')
 plt.xlabel('$x$ coordinate in [length units]')
@@ -190,7 +200,7 @@ plt.tricontour(
     np.real(z),
     levels          = 21,
     zorder          = 200)
-plt.colorbar('hydraulic head in [length units]')
+# plt.colorbar(label='hydraulic head in [length units]')
 
 # We can also add the stream function to this plot, which shows that the flow
 # paths (indicated by the stream function) can be analytically evaluated. The
@@ -199,6 +209,7 @@ plt.colorbar('hydraulic head in [length units]')
 # adds or removes water from the system. This discontinuities in the stream
 # function are unfortunately unavoidable, but can be removed from the plot with
 # special routines:
+plt.figure()
 ml.plot()
 plt.axis('equal')
 plt.xlabel('$x$ coordinate in [length units]')
@@ -209,7 +220,7 @@ plt.tricontour(
     np.real(z),
     levels          = 21,
     zorder          = 200)
-plt.colorbar('hydraulic head in [length units]')
+plt.colorbar(label='hydraulic head in [length units]')
 
 # This part is new
 plt.tricontour(
@@ -219,4 +230,4 @@ plt.tricontour(
     levels          = 21,
     zorder          = 200,
     cmap            = 'Greys')
-plt.colorbar('stream function')
+plt.colorbar(label='stream function')
