@@ -23,4 +23,8 @@ For more advanced purposes, we have also added the **synthetic test case** of th
 
 **Q: The model seems to create singularities, predicting very high or low water tables at certain isolated locations. What did I do wrong?**
 
-A: This usually happens if the model attempts to evaluate the complex potential Ω directly on an element. This can happen because because two elements share a line segment or because one of the evaluation points lies on an a line segment. Make sure that the elements do not share direct borders, for example by offsetting them by a minuscule amount (e.g., 1E-10). I have implemented protections against this for some but not all elements: inhomogeneity elements, for example, are automatically shrunk by a negligible amount. Also make sure that no elements intersect.
+A: This usually happens if the model attempts to evaluate the complex potential Ω directly on an element. This can happen because because two elements share a line segment or because one of the evaluation points lies on an a line segment. Make sure that the elements do not share direct borders, for example by offsetting them by a minuscule amount (e.g., 1E-10). I have implemented protections against this for some but not all elements: inhomogeneity elements, for example, are automatically shrunk by a negligible amount. Also, you should make sure that no inhomogeneities or no-flow boundaries intersect.
+
+**Q: There are strange artefacts along my no-flow boundaries or inhomogeneities. What happened?
+
+A: If you have tried the solutions in the answer above and the issue persists, try increasing the resolution of the element by increasing `segments`. Most of the constant-strength line elements I used here require sufficient resolution to induce the desired effect. It is difficult to predict how large this resolution should be in advance.
