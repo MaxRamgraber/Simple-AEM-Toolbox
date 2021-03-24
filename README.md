@@ -15,9 +15,11 @@ And that's it!
 
 ## Tutorials
 
-We have provided a few simple tutorials to help you familiarize yourself with the toolbox. The **basic tutorial** is available either as a [Python3 file](https://github.com/MaxRamgraber/Simple-AEM-Toolbox/tree/main/Tutorials/basic_tutorial) or as a [Jupyter Notebook](https://github.com/MaxRamgraber/Simple-AEM-Toolbox/tree/main/Jupyter%20Notebooks). This tutorial covers some of the most basic elements for a simple, deterministic groundwater simulation.
+I have provided a few simple tutorials to help you familiarize yourself with the toolbox. The [**basic tutorial**](https://github.com/MaxRamgraber/Simple-AEM-Toolbox/tree/main/Tutorials/Tutorial%2001%20Basic%20AEM) covers the fundamentals of constructing a deterministic flow model with this toolbox, and is available as both a [Python file](https://github.com/MaxRamgraber/Simple-AEM-Toolbox/blob/main/Tutorials/Tutorial%2001%20Basic%20AEM/basic_tutorial.py) and a [Jupyter Notebook](https://github.com/MaxRamgraber/Simple-AEM-Toolbox/blob/main/Tutorials/Tutorial%2001%20Basic%20AEM/basic_tutorial.ipynb). 
 
-For more advanced purposes, we have also added the **synthetic test case** of the accompanying paper as a [Python3 file](https://github.com/MaxRamgraber/Simple-AEM-Toolbox/tree/main/Tutorials/synthetic_reference). This scenario is a bit more complicated and does not only include a deterministic simulation, but also demonstrates the use of the (optional) [MCMC toolbox](https://github.com/MaxRamgraber/Simple-AEM-Toolbox/blob/main/toolbox_MCMC.py) for Bayesian posterior inference. While we attempted to also make the synthetic test case approachable to beginners, we recommend starting with the basic tutorial first.
+The [**advanced tutorial**](https://github.com/MaxRamgraber/Simple-AEM-Toolbox/tree/main/Tutorials/Tutorial%2002%20Uncertainty%20Estimation) expands the scope of the basic tutorial by showing how to prepare the Analytic Element Model for uncertainty quantification. This tutorial is also available as both a [Python file](https://github.com/MaxRamgraber/Simple-AEM-Toolbox/blob/main/Tutorials/Tutorial%2002%20Uncertainty%20Estimation/uncertainty_estimation_example.py) and a [Jupyter Notebook](https://github.com/MaxRamgraber/Simple-AEM-Toolbox/blob/main/Tutorials/Tutorial%2002%20Uncertainty%20Estimation/uncertainty_estimation_example.ipynb).
+
+For users with an interest in reproducing the some or all of the results in accompanying manuscript, I have also [uploaded the Python files](https://github.com/MaxRamgraber/Simple-AEM-Toolbox/tree/main/Manuscript%20files) required to reproduce the figures in the main manuscript and the supporting information.
 
 ## Troubleshooting
 
@@ -25,6 +27,6 @@ For more advanced purposes, we have also added the **synthetic test case** of th
 
 A: This usually happens if the model attempts to evaluate the complex potential Ω directly on an element. This can happen because because two elements share a line segment or because one of the evaluation points lies on an a line segment. Make sure that the elements do not share direct borders, for example by offsetting them by a minuscule amount (e.g., 1E-10). I have implemented protections against this for some but not all elements: inhomogeneity elements, for example, are automatically shrunk by a negligible amount. Also, you should make sure that no inhomogeneities or no-flow boundaries intersect.
 
-**Q: There are strange artefacts along my no-flow boundaries or inhomogeneities. What happened?**
+**Q: There are still strange artefacts along my no-flow boundaries or inhomogeneities. What happened?**
 
 A: If you have tried the solutions in the answer above and the issue persists, try increasing the resolution of the element by increasing `segments`. Most of the constant-strength line elements I used here require sufficient resolution to induce the desired effect. It is difficult to predict how large this resolution should be in advance.
