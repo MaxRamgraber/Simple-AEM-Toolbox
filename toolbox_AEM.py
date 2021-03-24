@@ -8,8 +8,7 @@
 class Model:
     
     def __init__(self,head_offset=0,aquifer_type='unconfined',domain_center=0+0j,
-                 domain_radius=1,H = None,variables=[],priors=[],observations=[],
-                 proposals=[]):
+                 domain_radius=1,H = None,variables=[],priors=[],observations=[]):
         
         """
         This creates a model base object, to which we can add other elements.
@@ -27,7 +26,6 @@ class Model:
         variable        - [list]    : list of variables which are inferred by MCMC, example: ['head_offset','H']; leave empty if unused
         priors          - [list]    : list of dictionaries, one for each unknown 'variable'; each dictionary must contain the name of distribution (in scipy.stats) and the relevant parameters as keys
         observations    - [list]    : list of dictionaries, one for each hydraulic head observations; each dictionary must contain a 'location' and a 'head key', with a complex and real number, respectively
-        proposals       - [dict]    : dictionary specifying the MCMC proposal distribution for each unknown 'variable'; each dictionary must contain the name of a distribution (in scipy.stats) under a 'distribution' key, and the relevant parameters as additional keys
         """
         
         import numpy as np
@@ -52,9 +50,7 @@ class Model:
         
         self.variables      = variables
         self.priors         = priors
-        
         self.observations   = observations
-        self.proposals      = proposals
         
         # This function scrapes the model and its elements for unknown variables,
         # then gives this instance three new variables:
@@ -102,7 +98,8 @@ class Model:
                 exec("e.%s = copy.copy(self.params[counter])" % var)
               
             # Update all other elements
-            e.update()    
+            e.update()   
+            
                
     def check_input(self):
             
@@ -116,13 +113,16 @@ class Model:
             self.H is None:
             raise Exception("depth of confined layer 'H' must be specified if aquifer is confined or convertible.")
             
-    def evaluate(self,z,mode='potential',derivatives='all'):
+    def evaluate(self,z,mode='potential',derivatives='all',return_error_flag=False, suppress_warnings = False):
         
         import numpy as np
         import copy
         
         # Ensure that the evaluation points are complex
         z   = self.complexify(z)
+        
+        if return_error_flag:
+            error_flag  = False
         
         self.update()
         
@@ -205,8 +205,11 @@ class Model:
             # (drying of an area) for any regions where it is negative, then
             # issue a warning
             if len(np.where(np.real(z) <= 0)[0]) > 0:
-                print('WARNING: negative or zero potential detected at some evaluation points. Consider lowering head_offset or prescribing prior limits.')
+                if not suppress_warnings:
+                    print('WARNING: negative or zero potential detected at some evaluation points. Consider lowering head_offset or prescribing prior limits.')
                 z[np.where(np.real(z) <= 0)] = 1j*np.imag(z[np.where(np.real(z) <= 0)])
+                if return_error_flag:
+                    error_flag  = True
                 
             if self.aquifer_type == 'confined':
                 
@@ -244,7 +247,10 @@ class Model:
             
             raise Exception("Mode must be either 'potential', 'gradient', or 'head'.")
             
-        return z
+        if return_error_flag:
+            return z,error_flag
+        else:
+            return z
     
     def set_up_linear_system(self):
         
@@ -497,6 +503,7 @@ class Model:
         import scipy.stats
         import copy
         import math
+        from toolbox_AEM import ElementMoebiusBase,ElementMoebiusOverlay
         
         def check_limits(params,var_dict):
             
@@ -532,17 +539,62 @@ class Model:
                 
             return reject,var_dict
             
+        # Find the base element
+        MoebiusBase_index           = None
+        for idx,e in enumerate(self.elementlist):
+            if isinstance(e, ElementMoebiusBase) and 'r' in e.variables:
+                MoebiusBase_index   = idx
+                
+        # Find any Möbius overlay element
+        MoebiusOverlay_index        = None
+        for idx,e in enumerate(self.elementlist):
+            if isinstance(e, ElementMoebiusOverlay) and 'r' in e.variables:
+                if MoebiusOverlay_index is None:
+                    MoebiusOverlay_index    = [idx]
+                else:
+                    MoebiusOverlay_index    += [idx]
             
         
         logprior    = []
         reject      = False
         
+        if MoebiusBase_index is not None:
+            if self.elementlist[MoebiusBase_index].are_points_clockwise():
+                # print('base clockwise')
+                reject  = True
+                
+            # Check if the control points fulfill the minimum angular spacing
+            r               = np.degrees(self.elementlist[MoebiusBase_index].r)
+            angular_limit   = np.degrees(self.elementlist[MoebiusBase_index].angular_limit)
+            if np.abs((r[0]-r[1] + 180) % 360 - 180) < angular_limit or \
+               np.abs((r[1]-r[2] + 180) % 360 - 180) < angular_limit or \
+               np.abs((r[2]-r[0] + 180) % 360 - 180) < angular_limit:
+                # print('base angular limit violation')
+                reject  = True
+                
+        if MoebiusOverlay_index is not None:
+            for idx in MoebiusOverlay_index:
+                if self.elementlist[idx].are_points_clockwise():
+                    reject  = True
+                    
+                # Check if the control points fulfill the minimum angular spacing
+                r               = np.degrees(self.elementlist[idx].r)
+                angular_limit   = np.degrees(self.elementlist[idx].angular_limit)
+                if np.abs((r[0]-r[1] + 180) % 360 - 180) < angular_limit or \
+                   np.abs((r[1]-r[2] + 180) % 360 - 180) < angular_limit or \
+                   np.abs((r[2]-r[0] + 180) % 360 - 180) < angular_limit:
+                    reject  = True
+                    
+        # if not reject:
+        #     print('WOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOP')
+                    
+
         for var in range(len(priors)):
             
             # If the logprior is to be rejected due to a violation of limits,
             # break the loop
             if reject:
-                break
+                break   
         
             # Create a copy of this variable's prior dictionary
             var_dict  = copy.copy(priors[var])
@@ -567,6 +619,10 @@ class Model:
                 
             elif 'converter' in list(var_dict.keys()) or 'deconverter' in list(var_dict.keys()):
                 raise Exception('Both a converter and a deconverter must be specified if either are used for a variable.')
+                
+            # Remove size if it was specified
+            if 'size' in list(var_dict.keys()):
+                del var_dict['size']
             
             # This prior is a univariate normal distribution
             if var_dict['distribution'] == 'norm' or var_dict['distribution'] == 'normal':
@@ -807,10 +863,21 @@ class Model:
                 z += [copy.copy(entry['location'])]
             z   = np.asarray(z)
             
-            predictions = copy.copy(np.real(self.evaluate(z,mode='head')))
+            predictions,error_flag = copy.copy(np.real(self.evaluate(
+                z,
+                mode='head',
+                return_error_flag=True,
+                suppress_warnings=True)))
+            
+            # If any of the predictions is NaN, raise an error flag
+            if not error_flag and np.isnan(predictions).any():
+                error_flag  = True
+            
+        else:
+            error_flag = False
             
         predictions = np.asarray(predictions)
-            
+        
         # Create a vector of observations
         obs_vec     = []
         for entry in observations:
@@ -848,6 +915,9 @@ class Model:
             # Add to the logprior
             loglikelihood = np.sum(scipy.stats.multivariate_normal.logpdf(x=obs_vec,mean=predictions,**obs_dict))
         
+        if error_flag:
+            loglikelihood = None
+            
         return loglikelihood, residuals
     
     def complexify(self,z):
@@ -964,9 +1034,11 @@ class Model:
         # Set the repeater boolean to True
         repeater = True
         
+        
+        
         # Re-arrange the starting point into an array
         points = np.asarray(p).copy().reshape((1,2))
-        
+        # """
         # Get three points 
         testpoints  = np.asarray([
             points[-1,0] + 1j*points[-1,1],
@@ -979,6 +1051,14 @@ class Model:
             testpoints[1]-testpoints[0],
             testpoints[2]-testpoints[0]])/stepsize*100
         grad    = grad/np.linalg.norm(grad)
+        # """
+        
+        # grad    = self.evaluate(
+        #     z           = points,
+        #     mode        = 'gradient',
+        #     derivatives = 'phi')
+        # # grad    = np.asarray([np.real(grad), np.imag(grad)])
+        # grad    = grad/np.linalg.norm(grad)
         
         # And save the result to the points array
         points = np.row_stack((
@@ -991,6 +1071,7 @@ class Model:
             # The last point in the array is the starting point
             p   = points[-1,:]
             
+            # """
             testpoints  = np.asarray([
                 points[-1,0] + 1j*points[-1,1],
                 points[-1,0] + stepsize/100 + 1j*points[-1,1],
@@ -1003,6 +1084,14 @@ class Model:
                 testpoints[2]-testpoints[0]])/stepsize*100
         
             grad    = grad/np.linalg.norm(grad)
+            # """
+            
+            # grad    = self.evaluate(
+            #     z           = points[-1,:],
+            #     mode        = 'gradient',
+            #     derivatives = 'phi')
+            # # grad    = np.asarray([np.real(grad), np.imag(grad)])
+            # grad    = grad/np.linalg.norm(grad)
             
             # And append the next step to the list
             points = np.row_stack((
@@ -1056,7 +1145,7 @@ class Model:
 class ElementMoebiusBase:
     
     def __init__(self,model,r=None,a=None,b=None,c=None,d=None,head_min=0,head_max=1,
-                 k=1,variables=[],priors=[],proposals=[],angular_limit=1):
+        k=1,variables=[],priors=[],proposals=[],angular_limit=1,use_SC=True):
         
         
         """
@@ -1074,12 +1163,13 @@ class ElementMoebiusBase:
         head_min        - [scalar]  : minimum hydraulic head (mapped to -1 in the unit square)
         head_max        - [scalar]  : maximum hydraulic head (mapped to +1 in the unit square)
         k               - [scalar]  : background hydraulic conductivity in canonical units (e.g., 1E-4 [length]/[time])
+        use_SC          - [boolean] : a flag to denote whether the Möbius base uses the Schwarz-Christoffel transformation from the unit square to the unit disk; changes to this flag affect the flow field, particularly near the edges
+
 
         If MCMC is used, we further require:
             
         variable        - [list]    : list of variables which are inferred by MCMC, example: ['r','phi_min']; leave empty if unused
         priors          - [list]    : list of dictionaries, one for each unknown 'variable'; each dictionary must contain the name of distribution (in scipy.stats) and the relevant parameters as keys
-        proposals       - [dict]    : dictionary specifying the MCMC proposal distribution for each unknown 'variable'; each dictionary must contain the name of a distribution (in scipy.stats) under a 'distribution' key, and the relevant parameters as additional keys
         angular_limit   - [scalar]  : a limit which prevents control points (A,B,C, or D) getting closer to each other than the specified value in radians; this acts as protection against improbable or unrealistic flow fields induced by the Möbius transformation
         """
         
@@ -1092,6 +1182,9 @@ class ElementMoebiusBase:
         # Define an angular limit. This is designed to keep the Möbius control 
         # points from getting arbitrarily close to each other; defined in radians
         self.angular_limit  = angular_limit
+        
+        # Get the Schwarz-Christoffel flag
+        self.use_SC         = use_SC
         
         # Set Moebius values
         self.r              = r
@@ -1200,7 +1293,8 @@ class ElementMoebiusBase:
         z = self.moebius(z,inverse=True)
         
         # Map from Möbius base to unit square
-        z = self.disk_to_square(z)
+        if self.use_SC:
+            z = self.disk_to_square(z)
         
         # Rescale the complex potential
         z   = (z+1)/2 * (self.phi_max-self.phi_min) + self.phi_min
@@ -1227,11 +1321,15 @@ class ElementMoebiusBase:
         # dz_ud / dz_mb
         grad_3  = (self.a*self.d-self.b*self.c)/(self.c*z_mb-self.a)**2
         
-        grad_2  = 2/(self.Ke*np.sqrt(z_ud**4+1))
+        if self.use_SC:
+            grad_2  = 2/(self.Ke*np.sqrt(z_ud**4+1))
         
         grad_1  = (self.phi_max-self.phi_min)/2
-                    
-        grad    = grad_1*grad_2*grad_3*grad_4
+
+        if self.use_SC:                    
+            grad    = grad_1*grad_2*grad_3*grad_4
+        else:
+            grad    = grad_1*grad_3*grad_4
             
         if derivatives == 'phi':
             dudx    = np.real(grad)
@@ -1558,7 +1656,7 @@ class ElementMoebiusBase:
 class ElementUniformBase:
     
     def __init__(self,model,alpha=0,head_min=0,head_max=1,k=1,
-                 variables=[],priors=[],proposals=[]):
+                 variables=[],priors=[]):
         
         
         """
@@ -1577,7 +1675,6 @@ class ElementUniformBase:
         variable        - [list]    : list of variables which are inferred by MCMC, example: ['r','phi_min']; leave empty if unused
         priors          - [list]    : list of dictionaries, one for each unknown 'variable'; each dictionary must contain the name of distribution (in scipy.stats) and the relevant parameters as keys
         observations    - [list]    : list of dictionaries, one for each hydraulic head observations; each dictionary must contain a 'location' and a 'head key', with a complex and real number, respectively
-        proposals       - [dict]    : dictionary specifying the MCMC proposal distribution for each unknown 'variable'; each dictionary must contain the name of a distribution (in scipy.stats) under a 'distribution' key, and the relevant parameters as additional keys
         """
         
         import numpy as np
@@ -1607,7 +1704,6 @@ class ElementUniformBase:
         
         self.variables      = variables
         self.priors         = priors
-        self.proposals      = proposals
         
         if len(self.variables) > 0:
             # There are some model variables specified
@@ -1741,7 +1837,7 @@ class ElementHeadBoundary:
     
     def __init__(self, model, line, line_ht, segments = None, influence = None, 
                  connectivity = 1, connectivity_normdist = None,
-                 variables = [], priors=[],proposals = []):
+                 variables = [], priors=[]):
         
         """
         This implements a prescribed head boundary.
@@ -1760,7 +1856,6 @@ class ElementHeadBoundary:
             
         variable        - [list]    : list of variables which are inferred by MCMC, example: ['line_ht']; leave empty if unused
         priors          - [list]    : list of dictionaries, one for each unknown 'variable'; each dictionary must contain the name of distribution (in scipy.stats) and the relevant parameters as keys
-        proposals       - [dict]    : dictionary specifying the MCMC proposal distribution for each unknown 'variable'; each dictionary must contain the name of a distribution (in scipy.stats) under a 'distribution' key, and the relevant parameters as additional keys
         """
 
         import numpy as np
@@ -1775,29 +1870,31 @@ class ElementHeadBoundary:
         # Prepare the stochastic variables
         self.variables      = variables
         self.priors         = priors
-        self.proposals      = proposals
         
         # Initialize the head target and connectivity variables
         self.line_ht        = line_ht
         self.connectivity   = connectivity
         if np.isscalar(self.connectivity): # Connectivity provided is uniform
+        
             self.connectivity_uniform   = True
+            
         else: # Connectivity provided 
+        
             self.connectivity_uniform   = False
+            
+            # Check if normalized distances were provided
             if connectivity_normdist is None:
                 raise Exception('If connectivity is not uniform, a vector of equal length containing normalized distances (e.g., [0., 0.25, 0.6, 1.]) must be specified.')
+            
+            # Check if connectivity_normdist is valid
+            if np.min(connectivity_normdist) < 0 or np.max(connectivity_normdist) > 1:
+                raise Exception('connectivity_normdist values must be between 0 and 1. Current values: '+str(connectivity_normdist))
+            
+            # Check if connectivity_normdist is sorted
+            if not (connectivity_normdist == np.sort(connectivity_normdist)).all():
+                raise Exception('connectivity_normdist values must be provided in ascending order. Current values: '+str(connectivity_normdist))
+            
             self.connectivity_normdist  = connectivity_normdist
-            # # Check if format provided is adequate
-            # if len(np.asarray(self.connectivity).shape) != 2 or \
-            #    np.asarray(self.connectivity).shape[1] != 2 or \
-            #    np.min(np.asarray(self.connectivity)[:,0]) < 0 or \
-            #    np.max(np.asarray(self.connectivity)[:,0]) > 1 or \
-            #    np.asarray(self.connectivity)[0,0] != 0 or \
-            #    np.asarray(self.connectivity)[-1,0] != 1:
-            #     raise Exception("'connectivity' must be either scalar or a list "+\
-            #     "following for format [(0., c1),(d2, c2),(d3, c3),...,(1.0,cn)]"+\
-            #     ", where each first entry specifies a normalized distance along the "+\
-            #     "line and each secind entry a connectivity between 0 and 1.")
             
         # ---------------------------------------------------------------------
         # Subdivide the provided no flow boundary into #segments pieces
@@ -2220,7 +2317,7 @@ class ElementHeadBoundary:
 class ElementNoFlowBoundary:
     
     def __init__(self, model, line, segments = None,head_target = 0,
-                 variables = [], priors=[], proposals = []):
+                 variables = [], priors=[]):
         
         """
         This implements a no-flow boundary.
@@ -2235,7 +2332,6 @@ class ElementNoFlowBoundary:
             
         variable        - [list]    : list of variables which are inferred by MCMC, example: ['line_ht']; leave empty if unused
         priors          - [list]    : list of dictionaries, one for each unknown 'variable'; each dictionary must contain the name of distribution (in scipy.stats) and the relevant parameters as keys
-        proposals       - [dict]    : dictionary specifying the MCMC proposal distribution for each unknown 'variable'; each dictionary must contain the name of a distribution (in scipy.stats) under a 'distribution' key, and the relevant parameters as additional keys
         """
 
         import numpy as np
@@ -2307,7 +2403,6 @@ class ElementNoFlowBoundary:
         # Extract target variables
         self.variables      = variables
         self.priors         = priors
-        self.proposals      = proposals
         
         self.L              = np.asarray(self.L)
         
@@ -2555,7 +2650,7 @@ class ElementNoFlowBoundary:
 class ElementInhomogeneity:
     
     def __init__(self, model, polygon, segments = None, k = 0.1,
-                 variables = [], priors=[], proposals = [],snap_distance = 1E-10,
+                 variables = [], priors=[], snap_distance = 1E-10,
                  zero_cutoff = 1E-10, snap = True):
 
         """
@@ -2572,7 +2667,6 @@ class ElementInhomogeneity:
             
         variable        - [list]    : list of variables which are inferred by MCMC, example: ['line_ht']; leave empty if unused
         priors          - [list]    : list of dictionaries, one for each unknown 'variable'; each dictionary must contain the name of distribution (in scipy.stats) and the relevant parameters as keys
-        proposals       - [dict]    : dictionary specifying the MCMC proposal distribution for each unknown 'variable'; each dictionary must contain the name of a distribution (in scipy.stats) under a 'distribution' key, and the relevant parameters as additional keys
         """
 
         import numpy as np
@@ -2663,7 +2757,6 @@ class ElementInhomogeneity:
         # Extract target variables
         self.variables      = variables
         self.priors         = priors
-        self.proposals      = proposals
         
         # Prepare the matrix block containing the effect of this element onto 
         # itself for future use in solving the linear system. The matrix requires
@@ -2843,6 +2936,11 @@ class ElementInhomogeneity:
         
         import numpy as np
         import copy
+        
+        # The functions F and G sometimes return NaN, errors we catch through
+        # np.nan_to_num. Suppress these error messages.
+        import warnings
+        warnings.filterwarnings('ignore')
         
         # Define the segment influence functions
         def F(Z):
@@ -3289,7 +3387,7 @@ class ElementInhomogeneity:
 class ElementAreaSink:
     
     def __init__(self, model, polygon, segments = None, strength = 1,
-                 variables = [], priors=[], proposals = [],snap_distance = 1E-10,
+                 variables = [], priors=[], snap_distance = 1E-10,
                  snap = False, influence = None):
 
         """
@@ -3306,7 +3404,6 @@ class ElementAreaSink:
             
         variable        - [list]    : list of variables which are inferred by MCMC, example: ['line_ht']; leave empty if unused
         priors          - [list]    : list of dictionaries, one for each unknown 'variable'; each dictionary must contain the name of distribution (in scipy.stats) and the relevant parameters as keys
-        proposals       - [dict]    : dictionary specifying the MCMC proposal distribution for each unknown 'variable'; each dictionary must contain the name of a distribution (in scipy.stats) under a 'distribution' key, and the relevant parameters as additional keys
         """
 
         import numpy as np
@@ -3420,7 +3517,6 @@ class ElementAreaSink:
         # Extract target variables
         self.variables      = variables
         self.priors         = priors
-        self.proposals      = proposals
         
         # # Prepare the matrix block containing the effect of this element onto 
         # # itself for future use in solving the linear system. The matrix requires
@@ -3909,7 +4005,7 @@ class ElementAreaSink:
 class ElementLineSink:
     
     def __init__(self, model, line, segments = None, influence = None, 
-                 strength = 1, variables = [], priors=[],proposals = []):
+                 strength = 1, variables = [], priors=[]):
         
         """
         This implements a line sink.
@@ -3926,7 +4022,6 @@ class ElementLineSink:
             
         variable        - [list]    : list of variables which are inferred by MCMC, example: ['line_ht']; leave empty if unused
         priors          - [list]    : list of dictionaries, one for each unknown 'variable'; each dictionary must contain the name of distribution (in scipy.stats) and the relevant parameters as keys
-        proposals       - [dict]    : dictionary specifying the MCMC proposal distribution for each unknown 'variable'; each dictionary must contain the name of a distribution (in scipy.stats) under a 'distribution' key, and the relevant parameters as additional keys
         """
 
         import numpy as np
@@ -3938,7 +4033,6 @@ class ElementLineSink:
         
         self.variables      = variables
         self.priors         = priors
-        self.proposals      = proposals
         
         # ---------------------------------------------------------------------
         # Subdivide the provided no flow boundary into #segments pieces
@@ -4242,7 +4336,7 @@ class ElementLineSink:
 class ElementWell:
     
     def __init__(self, model, zc, rw, influence = None, head_change = -1, strength = 1,
-                 drawdown_specified = False, variables = [], priors = [], proposals = []):
+                 drawdown_specified = False, variables = [], priors = []):
         
         """
         This implements an injection or extraction well.
@@ -4260,7 +4354,6 @@ class ElementWell:
             
         variable        - [list]    : list of variables which are inferred by MCMC, example: ['line_ht']; leave empty if unused
         priors          - [list]    : list of dictionaries, one for each unknown 'variable'; each dictionary must contain the name of distribution (in scipy.stats) and the relevant parameters as keys
-        proposals       - [dict]    : dictionary specifying the MCMC proposal distribution for each unknown 'variable'; each dictionary must contain the name of a distribution (in scipy.stats) under a 'distribution' key, and the relevant parameters as additional keys
         """
         
         import numpy as np
@@ -4270,7 +4363,6 @@ class ElementWell:
         
         self.variables      = variables
         self.priors         = priors
-        self.proposals      = proposals
         
         if influence is None:
             # If no influence radius is specified, set it to twice the model radius
@@ -4472,7 +4564,7 @@ class ElementWell:
 class ElementMoebiusOverlay:
     
     def __init__(self,model,r=None,a=None,b=None,c=None,d=None,head_min=0,head_max=1,
-                 variables=[],priors=[],proposals=[],angular_limit=1):
+                 variables=[],priors=[],angular_limit=1):
         
         """
         Similar to the Möbius base, but an additive overlay. Unfinished.
@@ -4524,7 +4616,6 @@ class ElementMoebiusOverlay:
         
         self.variables      = variables
         self.priors         = priors
-        self.proposals      = proposals
         
         self.Ke             = 1.854
         
@@ -4946,6 +5037,8 @@ def equidistant_points_in_circle(rings = 3, radius = 1, offset = 0+0j):
             raise Exception('Shape format not understood. Provide the offset either as a complex scalar, or as a real numpy array of shape (2,).')
         else:
             offset = np.asarray([np.real(offset),np.imag(offset)])
+    if np.isscalar(offset):
+        offset  = np.zeros(2)
     
     # Pre-allocate lists for the X and Y coordinates
     x = []
