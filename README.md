@@ -29,4 +29,4 @@ A: This usually happens if the model attempts to evaluate the complex potential 
 
 **Q: There are still strange artefacts along my no-flow boundaries or inhomogeneities. What happened?**
 
-A: If you have tried the solutions in the answer above and the issue persists, try increasing the resolution of the element by increasing `segments`. Most of the constant-strength line elements I used here require sufficient resolution to induce the desired effect. It is difficult to predict how large this resolution should be in advance.
+A: If you have tried the solutions in the answer above and the issue persists, try increasing the resolution of the element by increasing the element's `segments`. Most of the constant-strength line elements I used here require sufficient resolution to induce the desired effect. It is difficult to predict how large this resolution should be in advance.
