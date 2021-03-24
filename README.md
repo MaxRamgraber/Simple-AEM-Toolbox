@@ -1,6 +1,6 @@
 # A simple Analytic Element Method (AEM) toolbox
 
-This repository contains the two Python3 toolboxes and a simple tutorial for the accompanying paper in [Water Resources Research](https://agupubs.onlinelibrary.wiley.com/journal/19447973) (current status: submitted).
+This repository contains the two Python3 toolboxes and a simple tutorial for the accompanying paper in [Water Resources Research](https://agupubs.onlinelibrary.wiley.com/journal/19447973) (current status: under review).
 
 ## Installation
 
