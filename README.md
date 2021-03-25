@@ -55,6 +55,12 @@ Zonal inhomogeneities in the aquifer's hydraulic conductivity can be represented
 Prescribed head boundary conditions or rivers can be created using the `ElementHeadBoundary` object. This line element enforces a specified hydraulic head along its path. It requires the specification of its vertices and corresponding head values. It also allows for the implementation of a uniform or spatially varying connectivity value which can limit its influence on the water table.
 <br /><br />
 
+<img align="right" src="/images/06_no_flow_boundary.png" width="15%">
+
+### No-flow boundary
+No-flow boundaries from sheet pile walls or impermeable formations can be created using the `ElementNoFlowBoundary` object. This line element requires only the specification of the vertices along its path and can be either closed or open.
+<br /><br />
+
 ## Troubleshooting
 
 **Q: The model seems to create singularities, predicting very high or low water tables at certain isolated locations. What did I do wrong?**
