@@ -43,7 +43,11 @@ Möbius base flow provides a way to implement more intricate regional flow, allo
 Injection or extraction wells - or any other type of pointwise flow - can be implemented using the `ElementWell` object. This element requires the specification of a position, a positive or negative strength value, and a well radius. Alternatively to a strength value, this element can also adjust its strength to induce a desired drawdown on the flow field.
 <br /><br />
 
+<img align="right" src="/images/04_inhomogeneity.png" width="15%">
 
+### Polygonal inhomogeneity
+Zonal inhomogeneities in the aquifer's hydraulic conductivity can be represented using the `ElementInhomogeneity` object. This element requires the specification of a hydraulic conductivity value, as well as a closed or open polygon defining its extent.
+<br /><br />
 
 
 
