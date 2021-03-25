@@ -37,7 +37,11 @@ To provide a background potential or unidirectional regional flow, the simplest 
 Möbius base flow provides a way to implement more intricate regional flow, allowing for curvature, divergence, and convergence. This type of flow is specified by the AEM toolbox' object `ElementMoebiusBase`. This element requires the specification of three control points' direction in radians, a minimum and maximum hydraulic head, and a background hydraulic conductivity.
 <br /><br />
 
+<img align="left" src="/images/03_extraction_well.png" width="15%">
 
+### Extraction or injection well
+Injection or extraction wells - or any other type of pointwise flow - can be implemented using the `ElementWell` object. This element requires the specification of a position, a positive or negative strength value, and a well radius.
+<br /><br />
 
 
 
