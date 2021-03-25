@@ -80,6 +80,6 @@ A: If you have tried the solutions in the answer above and the issue persists, t
 
 A: These are so-called branch cuts, discontinuities in the stream function (the imaginary part of the complex potential) which arise whenever an element adds or removes water from the system. An example can be seen in the last image created in the [basic tutorial](https://github.com/MaxRamgraber/Simple-AEM-Toolbox/tree/main/Tutorials/Tutorial%2001%20Basic%20AEM). Unfortunately, there is no way to avoid them. For particle tracking purposes (when using the stream function, not the hydraulic potential), I advise capitalizing on the fact that these branch cuts occur in predictable patterns and explicitly account for them in your tracking routine. For plotting purposes, I recommend not using ready-made contouring functions, but instead plotting the streamlines with with a particle tracking routine.
 
-**Q: The stream function seems discontinuous between the inside and outside of my area source or sink. Why?**
+**Q: The stream function appears discontinuous between the inside and outside of my area source or sink. Why?**
 
 A: The stream function is not valid inside of area sinks or sources. If you want to plot the stream function anyways, I recommend masking the stream function inside the area sink's or source's polygon, similar to what I did in the example area sink under the 'Elements' heading above.
