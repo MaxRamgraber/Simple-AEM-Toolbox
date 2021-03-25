@@ -21,6 +21,10 @@ The [**advanced tutorial**](https://github.com/MaxRamgraber/Simple-AEM-Toolbox/t
 
 For users with an interest in reproducing the some or all of the results in accompanying manuscript, I have also [uploaded the Python files](https://github.com/MaxRamgraber/Simple-AEM-Toolbox/tree/main/Manuscript%20files) required to reproduce the figures in the main manuscript and the supporting information.
 
+## Elements
+
+<img align="right" src="doc/subpagelist.png">
+
 ## Troubleshooting
 
 **Q: The model seems to create singularities, predicting very high or low water tables at certain isolated locations. What did I do wrong?**
