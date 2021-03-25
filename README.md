@@ -31,6 +31,11 @@ To provide a background potential or unidirectional regional flow, the simplest 
 <br /><br />
 
 
+<img align="right" src="/images/02_moebius.png" width="15%">
+
+### Uniform flow
+To provide a background potential or unidirectional regional flow, the simplest option is to use uniform flow, specified by the AEM toolbox' object `ElementUniformBase`. This element requires the specification of a direction in radians, a minimum and maximum hydraulic head, and a background hydraulic conductivity.
+<br /><br />
 
 
 
