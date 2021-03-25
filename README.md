@@ -40,7 +40,7 @@ Möbius base flow provides a way to implement more intricate regional flow, allo
 <img align="left" src="/images/03_extraction_well.png" width="15%">
 
 ### Extraction or injection well
-Injection or extraction wells - or any other type of pointwise flow - can be implemented using the `ElementWell` object. This element requires the specification of a position, a positive or negative strength value, and a well radius.
+Injection or extraction wells - or any other type of pointwise flow - can be implemented using the `ElementWell` object. This element requires the specification of a position, a positive or negative strength value, and a well radius. Alternatively to a strength value, this element can also adjust its strength to induce a desired drawdown on the flow field.
 <br /><br />
 
 
