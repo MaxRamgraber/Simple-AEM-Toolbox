@@ -23,9 +23,9 @@ For users with an interest in reproducing the some or all of the results in acco
 
 ## Elements
 
-<img align="left" src="/images/01_uniform.png" width="30%">
+<img align="left" src="/images/01_uniform.png" width="15%">
 
-# Uniform flow
+### Uniform flow
 Basic uniform flow 
 
 
