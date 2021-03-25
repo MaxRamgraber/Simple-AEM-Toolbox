@@ -23,10 +23,10 @@ For users with an interest in reproducing the some or all of the results in acco
 
 ## Elements
 
-### Uniform flow
+
+<img align="left" src="/images/01_uniform.png" width="15%">### Uniform flow
 Basic uniform flow 
 
-<img align="left" src="/images/01_uniform.png" width="15%">
 
 
 
