@@ -24,7 +24,7 @@ For users with an interest in reproducing the some or all of the results in acco
 ## Elements
 
 
-<img align="left" src="/images/01_uniform.png" width="15%">
+<img align="left" src="https://github.com/MaxRamgraber/Simple-AEM-Toolbox/blob/main/images/01_uniform.png" width="15%">
 
 ### Uniform base flow
 To provide a background potential or unidirectional regional flow, the simplest option is to use uniform flow, specified by the AEM toolbox' object `ElementUniformBase`. This element requires the specification of a direction in radians, a minimum and maximum hydraulic head, and a background hydraulic conductivity.
@@ -37,31 +37,31 @@ To provide a background potential or unidirectional regional flow, the simplest 
 Möbius base flow provides a way to implement more intricate regional flow, allowing for curvature, divergence, and convergence. This type of flow is specified by the AEM toolbox' object `ElementMoebiusBase`. This element requires the specification of three control points' direction in radians, a minimum and maximum hydraulic head, and a background hydraulic conductivity.
 <br /><br />
 
-<img align="left" src="/images/03_extraction_well.png" width="15%">
+<img align="left" src="https://github.com/MaxRamgraber/Simple-AEM-Toolbox/blob/main/images/03_extraction_well.png" width="15%">
 
 ### Extraction or injection well
 Injection or extraction wells - or any other type of pointwise flow - can be implemented using the `ElementWell` object. This element requires the specification of a position, a positive or negative strength value, and a well radius. Alternatively to a strength value, this element can also adjust its strength to induce a desired drawdown on the flow field.
 <br /><br />
 
-<img align="right" src="/images/04_inhomogeneity.png" width="15%">
+<img align="right" src="https://github.com/MaxRamgraber/Simple-AEM-Toolbox/blob/main/images/04_inhomogeneity.png" width="15%">
 
 ### Polygonal inhomogeneity
 Zonal inhomogeneities in the aquifer's hydraulic conductivity can be represented using the `ElementInhomogeneity` object. This element requires the specification of a hydraulic conductivity value, as well as a closed or open polygon defining its extent.
 <br /><br />
 
-<img align="left" src="/images/05_fixed_head_boundary.png" width="15%">
+<img align="left" src="https://github.com/MaxRamgraber/Simple-AEM-Toolbox/blob/main/images/05_fixed_head_boundary.png" width="15%">
 
 ### Prescribed head boundary / River
 Prescribed head boundary conditions or rivers can be created using the `ElementHeadBoundary` object. This line element enforces a specified hydraulic head along its path. It requires the specification of its vertices and corresponding head values. It also allows for the implementation of a uniform or spatially varying connectivity value which can limit its influence on the water table.
 <br /><br />
 
-<img align="right" src="/images/06_no_flow_boundary.png" width="15%">
+<img align="right" src="https://github.com/MaxRamgraber/Simple-AEM-Toolbox/blob/main/images/06_no_flow_boundary.png" width="15%">
 
 ### No-flow boundary
 No-flow boundaries from sheet pile walls or impermeable formations can be created using the `ElementNoFlowBoundary` object. This line element requires only the specification of the vertices along its path and can be either closed or open.
 <br /><br />
 
-<img align="left" src="/images/07_area_sink.png" width="15%">
+<img align="left" src="https://github.com/MaxRamgraber/Simple-AEM-Toolbox/blob/main/images/07_area_sink.png" width="15%">
 
 ### Area sources or sinks
 Areal recharge or water extraction can be represented using the `ElementAreaSink` object. This element adds or removes water according to a specified range inside its polygon. It requires the specification of its polygons and a positive or negative strength value. Not that the stream function component of the complex potential is not valid inside an area source or sink.
