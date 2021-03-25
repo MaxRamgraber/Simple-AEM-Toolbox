@@ -26,15 +26,15 @@ For users with an interest in reproducing the some or all of the results in acco
 
 <img align="left" src="/images/01_uniform.png" width="15%">
 
-### Uniform flow
+### Uniform base flow
 To provide a background potential or unidirectional regional flow, the simplest option is to use uniform flow, specified by the AEM toolbox' object `ElementUniformBase`. This element requires the specification of a direction in radians, a minimum and maximum hydraulic head, and a background hydraulic conductivity.
 <br /><br />
 
 
 <img align="right" src="/images/02_moebius.png" width="15%">
 
-### Uniform flow
-To provide a background potential or unidirectional regional flow, the simplest option is to use uniform flow, specified by the AEM toolbox' object `ElementUniformBase`. This element requires the specification of a direction in radians, a minimum and maximum hydraulic head, and a background hydraulic conductivity.
+### Möbius base flow
+Möbius base flow provides a way to implement more intricate regional flow, allowing for curvature, divergence, and convergence. This type of flow is specified by the AEM toolbox' object `ElementMoebiusBase`. This element requires the specification of three control points' direction in radians, a minimum and maximum hydraulic head, and a background hydraulic conductivity.
 <br /><br />
 
 
