@@ -23,7 +23,7 @@ For users with an interest in reproducing the some or all of the results in acco
 
 ## Elements
 
-<img align="right" src="doc/subpagelist.png">
+<img align="right" src="/images/01_uniform.png">
 
 ## Troubleshooting
 
