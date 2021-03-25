@@ -61,6 +61,12 @@ Prescribed head boundary conditions or rivers can be created using the `ElementH
 No-flow boundaries from sheet pile walls or impermeable formations can be created using the `ElementNoFlowBoundary` object. This line element requires only the specification of the vertices along its path and can be either closed or open.
 <br /><br />
 
+<img align="left" src="/images/07_area_sink.png" width="15%">
+
+### Area sources or sinks
+Areal recharge or water extraction can be represented using the `ElementAreaSink` object. This element adds or removes water according to a specified range inside its polygon. It requires the specification of its polygons and a positive or negative strength value. Not that the stream function component of the complex potential is not valid inside an area source or sink.
+<br /><br />
+
 ## Troubleshooting
 
 **Q: The model seems to create singularities, predicting very high or low water tables at certain isolated locations. What did I do wrong?**
