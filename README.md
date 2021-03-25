@@ -49,7 +49,11 @@ Injection or extraction wells - or any other type of pointwise flow - can be imp
 Zonal inhomogeneities in the aquifer's hydraulic conductivity can be represented using the `ElementInhomogeneity` object. This element requires the specification of a hydraulic conductivity value, as well as a closed or open polygon defining its extent.
 <br /><br />
 
+<img align="left" src="/images/05_fixed_head_boundary.png" width="15%">
 
+### Prescribed head boundary / River
+Prescribed head boundary conditions or rivers can be created using the `ElementHeadBoundary` object. This line element enforces a specified hydraulic head along its path. It requires the specification of its vertices and corresponding head values. It also allows for the implementation of a uniform or spatially varying connectivity value which can limit its influence on the water table.
+<br /><br />
 
 ## Troubleshooting
 
