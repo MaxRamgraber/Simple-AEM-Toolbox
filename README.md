@@ -1,6 +1,6 @@
 # A simple Analytic Element Method (AEM) toolbox
 
-This repository contains the two Python3 toolboxes and a simple tutorial for the accompanying paper in [Water Resources Research](https://agupubs.onlinelibrary.wiley.com/journal/19447973) (current status: under review).
+This repository contains the two Python3 toolboxes and a simple tutorial for the accompanying paper in [Water Resources Research](https://agupubs.onlinelibrary.wiley.com/journal/19447973) (current status: under review). If you want to gain some practical intuition for AEM, I have also created a simple interactive, web-based AEM model with an extraction well, an injection well, a no-flow boundary, and Möbius base flow. The model can be accessed [here](https://maxramgraber.github.io/InteractiveAEM/).
 
 ## Installation
 
