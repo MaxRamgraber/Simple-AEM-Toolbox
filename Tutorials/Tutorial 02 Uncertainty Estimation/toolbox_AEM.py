@@ -8,7 +8,8 @@
 class Model:
     
     def __init__(self,head_offset=0,aquifer_type='unconfined',domain_center=0+0j,
-                 domain_radius=1,H = None,variables=[],priors=[],observations=[]):
+                 domain_radius=1,H = None,variables=[],priors=[],observations=[],
+                 likelihood_dictionary=None):
         
         """
         This creates a model base object, to which we can add other elements.
@@ -26,6 +27,7 @@ class Model:
         variable        - [list]    : list of variables which are inferred by MCMC, example: ['head_offset','H']; leave empty if unused
         priors          - [list]    : list of dictionaries, one for each unknown 'variable'; each dictionary must contain the name of distribution (in scipy.stats) and the relevant parameters as keys
         observations    - [list]    : list of dictionaries, one for each hydraulic head observations; each dictionary must contain a 'location' and a 'head key', with a complex and real number, respectively
+        likelihood_dictionary   - [dict]    : dictionary with keys 'distribution' and any keywords required to specify the probability distribution; only required if this toolbox's logposterior function is used
         """
         
         import numpy as np
@@ -51,6 +53,7 @@ class Model:
         self.variables      = variables
         self.priors         = priors
         self.observations   = observations
+        self.likelihood_dictionary  = likelihood_dictionary
         
         # This function scrapes the model and its elements for unknown variables,
         # then gives this instance three new variables:
@@ -503,7 +506,7 @@ class Model:
         import scipy.stats
         import copy
         import math
-        from toolbox_AEM import ElementMoebiusBase,ElementMoebiusOverlay
+        # from toolbox_AEM import ElementMoebiusBase,ElementMoebiusOverlay
         
         def check_limits(params,var_dict):
             
@@ -746,6 +749,20 @@ class Model:
         
                 # Add to the logprior
                 logprior += [np.sum(scipy.stats.expon.logpdf(x=np.abs(params[var]),**var_dict))]
+                
+            # This prior is a von Mises distribution
+            elif var_dict['distribution'] == 'unif' or var_dict['distribution'] == 'uniform':
+                
+                # Remove the variable name from the dictionary
+                var_dict.pop('distribution')
+                if 'name' in list(var_dict.keys()): var_dict.pop('name')
+                
+                temp, var_dict = check_limits(params = params[var], var_dict = var_dict)
+                if temp is not None:
+                    reject  = True
+        
+                # Add to the logprior
+                logprior += [np.sum(scipy.stats.uniform.logpdf(x=params[var],**var_dict))]
         
             # This prior is a von Mises distribution
             elif var_dict['distribution'] == 'vonmises' or var_dict['distribution'] == 'von mises' or var_dict['distribution'] == 'von Mises':
@@ -919,6 +936,70 @@ class Model:
             loglikelihood = None
             
         return loglikelihood, residuals
+    
+    def logposterior(self,params,likelihood_dictionary=None,priors=None,
+        observations=None,verbose=False,predictions=None,return_residuals=False):
+        
+        """
+        This function returns the unnormalized logposterior of the model, 
+        intended for use in any external inference routines. If the proposal
+        violates any parameter limits, or the model detects instabilities, the
+        logposterior will return None instead of a numerical value.
+        
+           Parameters:
+                
+            params          - [list]    : list of parameters to be evaluated, corresponding to the list entries in 'variables'
+            likelihood_dictionary   - [dict]    : dictionary with keys 'distribution' and any keywords required to specify the probability distribution; only required if this toolbox's logposterior function is used
+            priors          - [list]    : list of dictionaries, one for each unknown 'variable'; each dictionary must contain the name of distribution (in scipy.stats) and the relevant parameters as keys
+            observations    - [list]    : list of dictionaries, one for each hydraulic head observations; each dictionary must contain a 'location' and a 'head key', with a complex and real number, respectively
+            verbose         - [boolean] : flag passed on to the logprior function, controlling whether additional information is printed or not
+            predictions     - [list]    : optional list of predictions at the observation locations; predictions are simulated for the defined 'params' if not specified
+            return_residuals- [boolean] : flag for whether only the logposterior is returned (False), or whether both the logposterior and the observation residuals (True) is returned
+        
+        """
+        
+        # Fetch any unspecified variables
+        if likelihood_dictionary is None:
+            likelihood_dictionary   = self.likelihood_dictionary
+            if self.likelihood_dictionary is None:
+                raise Exception('Likelihood_dictionary must be specified to evaluate the logposterior density.')
+        if priors is None:
+            priors                  = self.priors
+            if self.priors == []:
+                raise Exception('No priors are specified. Priors are required to evaluate the logposterior density.')
+        if observations is None:
+            observations            = self.observations
+            if self.observations  == []:
+                raise Exception('No observations are specified. Observations are required to evaluate the likelihood for the logposterior density.')
+        
+        # Evaluate the logprior
+        logpri      = self.logprior(
+            params      = params,
+            priors      = priors,
+            verbose     = False)
+        
+        # If the logprior was evaluated successfully, evaluate the loglikelihood
+        if logpri is not None:
+            loglik, residuals  = self.loglikelihood(
+                observations            = observations,
+                likelihood_dictionary   = likelihood_dictionary,
+                predictions             = predictions)
+        else:
+            loglik      = None
+            residuals   = None
+            
+        # If both the logprior and loglikelihood were valid, calculate the 
+        # unnormalized logposterior
+        if logpri is not None and loglik is not None:
+            logpost     = logpri + loglik
+        else:
+            logpost     = None
+            
+        # Also return the loglikelihood's residuals, if requested
+        if return_residuals:
+            return logpost, residuals
+        else:
+            return logpost
     
     def complexify(self,z):
         
@@ -2650,7 +2731,7 @@ class ElementInhomogeneity:
     
     def __init__(self, model, polygon, segments = None, k = 0.1,
                  variables = [], priors=[], snap_distance = 1E-10,
-                 snap = True):
+                 zero_cutoff = 1E-10, snap = True):
 
         """
         This implements a zonal hydraulic conductivity inhomogeneity.
@@ -2683,6 +2764,7 @@ class ElementInhomogeneity:
         self.polygon        = self.complexify(self.polygon)
         
         self.snap_distance  = snap_distance
+        self.zero_cutoff    = zero_cutoff
         
         # Is the polygon closed? If not, close it temporarily
         if np.abs(self.polygon[0]-self.polygon[-1]) > self.snap_distance:
